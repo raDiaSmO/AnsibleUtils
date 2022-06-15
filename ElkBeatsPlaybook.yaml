@@ -1,0 +1,40 @@
+---
+- name: Verifying beats files
+  hosts: elk
+
+  tasks:
+
+  - name: Checking if filebeat is present
+    stat:
+      path: /etc/filebeat/filebeat.yml
+
+    register: filebeat
+
+  - name: Report if file exists
+    debug:
+      msg: "Filebeat exists"
+    when: filebeat.stat.exists
+
+  - name: Copy filebeat from ansible server to remote node if not present
+    copy:
+      src: ~/ansible/files/filebeat.yml
+      dest: /etc/filebeat/filebeat.yml
+      mode: "0644"
+    when: not filebeat.stat.exists
+
+  - name: Checking if metricbeat is present
+    stat:
+      path: /etc/metricbeat/metricbeat.yml
+    register: metricbeat
+
+  - name: Report if file exists
+    debug:
+      msg: "Metricbeat exists"
+    when: metricbeat.stat.exists
+
+  - name: Copy metricbeat from ansible server to remote node if not present
+    copy:
+      src: ~/ansible/files/metricbeat.yml
+      dest: /etc/metricbeat/metricbeat.yml
+      mode: "0644"
+    when: not metricbeat.stat.exists
