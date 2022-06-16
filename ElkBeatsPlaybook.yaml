@@ -1,10 +1,12 @@
 ---
-- name: Verifying beats files
+- name: Verifying compliance of beats agents
   hosts: elk
   vars:
     beats:
       - filebeat
       - metricbeat
+      - packetbeat
+      - auditbeat
 
   tasks:
 
@@ -55,3 +57,12 @@
       dest: "/etc/{{ item.item }}/{{ item.item }}.yml"
     with_items: "{{ status.results }}"
     when: not item.stat.exists
+
+  - name: Starting and enabling service
+    service:
+      name: "{{ item.item }}"
+      enabled: yes
+      state: started
+    with_items: "{{ status.results }}"
+    when: item.stat.exists
+
