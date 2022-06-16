@@ -2,16 +2,45 @@
 - name: Verifying beats files
   hosts: elk
   vars:
-    files:
+    beats:
       - filebeat
       - metricbeat
 
   tasks:
 
+  - name: Checking if directory is present
+    stat:
+      path: "/etc/{{ item }}/"
+    with_items: "{{ beats }}"
+    register: status
+
+  - name: Reporting if directory exists
+    debug:
+      msg: "{{ item.item }} exists"
+    with_items: "{{ status.results }}"
+    when: item.stat.isdir is defined and item.stat.isdir
+
+  - name: Copying from server if directory does not exist
+    copy:
+      src: "~/ansible/files/{{ item.item }}/" 
+      dest: "/etc/{{ item.item }}/"
+    with_items: "{{ status.results }}"
+    when: not item.stat.exists
+
+  - name: Set the permissions on the directory
+    file:
+      path: "/etc/{{ item.item }}/"
+      state: directory
+      owner: root
+      group: root
+      mode: '0540'
+    with_items: "{{ status.results }}"
+    when: item.stat.exists
+
   - name: Checking if file is present
     stat:
       path: "/etc/{{ item }}/{{ item }}.yml"
-    with_items: "{{ files }}"
+    with_items: "{{ beats }}"
     register: status
 
   - name: Reporting if file exists
@@ -22,8 +51,7 @@
 
   - name: Copying from server if file not found
     copy:
-      src: "~/ansible/files/{{ item.item }}.yml"
+      src: "~/ansible/files/{{ item.item }}.yml" 
       dest: "/etc/{{ item.item }}/{{ item.item }}.yml"
     with_items: "{{ status.results }}"
     when: not item.stat.exists
-
