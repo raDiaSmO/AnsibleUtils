@@ -1,5 +1,5 @@
 ---
-- name: Verifying compliance of beats agents
+- name: Verifying beats
   hosts: elk
   vars:
     beats:
@@ -16,20 +16,12 @@
     with_items: "{{ beats }}"
     register: status
 
-  - name: Reporting if directory exists
-    debug:
-      msg: "{{ item.item }} exists"
+  - name: Installing deb package from source
+    apt:
+      deb: "https://artifacts.elastic.co/downloads/beats/{{ item.item }}/{{ item.item }}-7.17.4-amd64.deb"
     with_items: "{{ status.results }}"
-    when: item.stat.isdir is defined and item.stat.isdir
 
-  - name: Copying from server if directory does not exist
-    copy:
-      src: "~/ansible/files/{{ item.item }}/" 
-      dest: "/etc/{{ item.item }}/"
-    with_items: "{{ status.results }}"
-    when: not item.stat.exists
-
-  - name: Set the permissions on the directory
+  - name: Setting the permissions on the directory
     file:
       path: "/etc/{{ item.item }}/"
       state: directory
@@ -39,19 +31,19 @@
     with_items: "{{ status.results }}"
     when: item.stat.exists
 
-  - name: Checking if file is present
+  - name: Checking if config file is present
     stat:
       path: "/etc/{{ item }}/{{ item }}.yml"
     with_items: "{{ beats }}"
     register: status
 
-  - name: Reporting if file exists
+  - name: Reporting if config file exists
     debug:
       msg: "{{ item.item }} exists"
     with_items: "{{ status.results }}"
     when: item.stat.exists
 
-  - name: Copying from server if file not found
+  - name: Copying from server if config file not found
     copy:
       src: "~/ansible/files/{{ item.item }}.yml" 
       dest: "/etc/{{ item.item }}/{{ item.item }}.yml"
@@ -65,4 +57,3 @@
       state: started
     with_items: "{{ status.results }}"
     when: item.stat.exists
-
