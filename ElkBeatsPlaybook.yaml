@@ -10,6 +10,12 @@
 
   tasks:
 
+  - name: Setting authorized key from public key of current user
+    authorized_key:
+      user: root
+      state: present
+      key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}" 
+
   - name: Checking if directory is present
     stat:
       path: "/etc/{{ item }}/"
