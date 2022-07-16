@@ -1,0 +1,67 @@
+---
+- name: Customizing the golden image
+  hosts: golden
+
+  tasks:
+  - name: Updating all packages to their latest version
+    apt:
+      name: "*"
+      state: latest
+
+  - name: Removing useless packages from the cache
+    apt:
+      autoclean: yes
+
+  - name: Removing dependencies that are no longer required
+    apt:
+      autoremove: yes
+
+  - name: Installing a list of packages for the golden image
+    apt:
+      pkg:
+      - git
+        # - bitwarden
+        #- sublime-text
+      - virtualbox
+        #- protonvpn
+        #- obsidian
+        #- google-chrome-stable
+      - firefox
+      - vim
+      - openssh-server
+      - net-tools
+
+  - name: Removing a list of packages for the golden image
+    apt:
+      pkg:
+      - gnome-todo
+      - gnome-mahjongg
+      - gnome-sudoku
+      - gnome-mines
+      - thunderbird
+      - aisleriot
+      - remmina
+      - transmission-gtk
+      - gedit
+      - nano
+      - shotwell
+      - cheese
+      - rhythmbox
+      state: absent
+
+  - name: Ensuring journal log file limitation
+    lineinfile:
+      path: /etc/systemd/journald.conf
+      regexp: '^SystemMaxUse='
+      line: SystemMaxUse=5M
+
+  - name: Generating an OpenSSH keypair
+    openssh_keypair:
+      path: ~/.ssh/id_rsa
+      type: rsa
+      size: 4096
+
+  - name: Run a command
+    shell: gsettings set org.gnome.shell.extensions.ding show-home false
+    args:
+        executable: /bin/bash
