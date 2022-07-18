@@ -1,37 +1,52 @@
 ---
-- name: Customizing the golden image
+- name: Customizing the Debian based golden image
   hosts: golden
 
   tasks:
-  - name: Updating all packages to their latest version
-    apt:
-      name: "*"
-      state: latest
 
-  - name: Removing useless packages from the cache
+  - name: Add APT public signing keys
+    apt_key:
+      url: "{{ item }}" 
+      state: present
+    with_items:
+      - "https://dl.google.com/linux/linux_signing_key.pub"
+      - "https://download.sublimetext.com/sublimehq-pub.gpg"
+
+  - name: Add APT third party repositories
+    apt_repository:
+      repo: "{{ item }}" 
+      state: present
+    with_items:
+      - "deb http://dl.google.com/linux/chrome/deb/ stable main"
+      - "deb https://download.sublimetext.com/ apt/stable/"
+
+  - name: Updating APT packages
+    apt:
+      update_cache: yes
+
+  - name: Upgrading the operating system
+    apt:
+      upgrade: dist
+
+  - name: Removing useless packages and dependencies that are no longer required
     apt:
       autoclean: yes
-
-  - name: Removing dependencies that are no longer required
-    apt:
       autoremove: yes
 
-  - name: Installing a list of packages for the golden image
+  - name: Installing a list of APT packages for the golden image
     apt:
       pkg:
       - git
-        # - bitwarden
-        #- sublime-text
       - virtualbox
-        #- protonvpn
-        #- obsidian
-        #- google-chrome-stable
       - firefox
       - vim
       - openssh-server
       - net-tools
+      - sublime-text
+      - google-chrome-stable
+      state: present
 
-  - name: Removing a list of packages for the golden image
+  - name: Removing a list of generic APT packages for the golden image
     apt:
       pkg:
       - gnome-todo
@@ -54,14 +69,16 @@
       path: /etc/systemd/journald.conf
       regexp: '^SystemMaxUse='
       line: SystemMaxUse=5M
+      backup: yes
 
-  - name: Generating an OpenSSH keypair
-    openssh_keypair:
-      path: ~/.ssh/id_rsa
-      type: rsa
-      size: 4096
+  - name: Ensuring dark mode is enabled in Chrome
+    lineinfile:
+      path: /usr/share/applications/google-chrome.desktop
+      regexp: '^Exec=/usr/bin/google-chrome-stable'
+      line: Exec=/usr/bin/google-chrome-stable --enable-features=WebUIDarkMode --force-dark-mode
+      backup: yes
 
-  - name: Run a command
-    shell: gsettings set org.gnome.shell.extensions.ding show-home false
+  - name: Cleaning useless GUI icons for a minimalist setup
+    shell: for item in show-home show-trash; do gsettings set org.gnome.shell.extensions.ding $item false; done
     args:
-        executable: /bin/bash
+      executable: /bin/bash
