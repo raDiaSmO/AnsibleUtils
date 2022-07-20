@@ -13,14 +13,19 @@
       - "https://download.sublimetext.com/sublimehq-pub.gpg"
       - "https://protonvpn.com/download/public_key.asc"
 
-  - name: Add APT third party repositories
+  - name: Adding APT third party repositories
     apt_repository:
-      repo: "{{ item }}" 
+      repo: "{{ item }}"
       state: present
     with_items:
-      - "deb http://dl.google.com/linux/chrome/deb/ stable main"
-      - "deb https://download.sublimetext.com/ apt/stable/"
-      - "deb https://repo.protonvpn.com/debian stable main"
+      - "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main"
+      - "deb [arch=amd64] https://download.sublimetext.com/ apt/stable/"
+      - "deb [arch=amd64] https://repo.protonvpn.com/debian stable main"
+
+  - name: Removing duplicate APT third party repository
+    file:
+      path: '/etc/apt/sources.list.d/google-chrome.list'
+      state: absent
 
   - name: Updating APT packages
     apt:
@@ -44,10 +49,20 @@
       - vim
       - openssh-server
       - net-tools
-      - sublime-text
       - google-chrome-stable
+      - sublime-text
       - protonvpn
+      - libfuse2
       state: present
+
+  - name: Installing AppImages for the golden image
+    get_url:
+      url: "{{ item.url }}" 
+      dest: "{{ item.dest }}"
+      mode: '0755'
+    loop:
+      - { url: 'https://github.com/obsidianmd/obsidian-releases/releases/download/v0.15.6/Obsidian-0.15.6.AppImage', dest: '/opt/obsidian'}
+      - { url: 'https://vault.bitwarden.com/download/?app=desktop&platform=linux&variant=appimage', dest: '/opt/bitwarden'}
 
   - name: Removing a list of generic APT packages for the golden image
     apt:
@@ -74,12 +89,13 @@
       line: SystemMaxUse=5M
       backup: yes
 
-  - name: Ensuring dark mode is enabled in Chrome
-    lineinfile:
-      path: /usr/share/applications/google-chrome.desktop
-      regexp: '^Exec=/usr/bin/google-chrome-stable'
-      line: Exec=/usr/bin/google-chrome-stable --enable-features=WebUIDarkMode --force-dark-mode
-      backup: yes
+#To be done
+  #- name: Ensuring dark mode is enabled in Chrome
+    #lineinfile:
+      #path: /usr/share/applications/google-chrome.desktop
+      #regexp: '^Exec=/usr/bin/google-chrome-stable'
+      #line: Exec=/usr/bin/google-chrome-stable --enable-features=WebUIDarkMode --force-dark-mode
+      #backup: yes
 
   - name: Cleaning useless GUI icons for a minimalist setup
     shell: for item in show-home show-trash; do gsettings set org.gnome.shell.extensions.ding $item false; done
