@@ -4,7 +4,19 @@
 
   tasks:
 
+  - name: Setting temp authorized key to run this task
+    authorized_key:
+      user: "{{ ansible_user }}"
+      state: present
+      key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+
+  - name: Generate an OpenSSH rsa keypair
+    openssh_keypair:
+      path: ~/.ssh/id_rsa
+      size: 4096
+
   - name: Add APT public signing keys
+    become: yes
     apt_key:
       url: "{{ item }}" 
       state: present
@@ -14,6 +26,7 @@
       - "https://protonvpn.com/download/public_key.asc"
 
   - name: Adding APT third party repositories
+    become: yes
     apt_repository:
       repo: "{{ item }}"
       state: present
@@ -23,24 +36,29 @@
       - "deb [arch=amd64] https://repo.protonvpn.com/debian stable main"
 
   - name: Removing duplicate APT third party repository
+    become: yes
     file:
       path: '/etc/apt/sources.list.d/google-chrome.list'
       state: absent
 
   - name: Updating APT packages
+    become: yes
     apt:
       update_cache: yes
 
   - name: Upgrading the operating system
+    become: yes
     apt:
       upgrade: dist
 
   - name: Removing useless packages and dependencies that are no longer required
+    become: yes
     apt:
       autoclean: yes
       autoremove: yes
 
   - name: Installing a list of APT packages for the golden image
+    become: yes
     apt:
       pkg:
       - git
@@ -56,15 +74,17 @@
       state: present
 
   - name: Installing AppImages for the golden image
+    become: yes
     get_url:
       url: "{{ item.url }}" 
       dest: "{{ item.dest }}"
       mode: '0755'
     loop:
-      - { url: 'https://github.com/obsidianmd/obsidian-releases/releases/download/v0.15.6/Obsidian-0.15.6.AppImage', dest: '/opt/obsidian'}
-      - { url: 'https://vault.bitwarden.com/download/?app=desktop&platform=linux&variant=appimage', dest: '/opt/bitwarden'}
+      - { url: 'https://github.com/obsidianmd/obsidian-releases/releases/download/v0.15.6/Obsidian-0.15.6.AppImage', dest: '/usr/bin/obsidian'}
+      - { url: 'https://vault.bitwarden.com/download/?app=desktop&platform=linux&variant=appimage', dest: '/usr/bin/bitwarden'}
 
   - name: Removing a list of generic APT packages for the golden image
+    become: yes
     apt:
       pkg:
       - gnome-todo
@@ -83,11 +103,11 @@
       state: absent
 
   - name: Ensuring journal log file limitation
+    become: yes
     lineinfile:
       path: /etc/systemd/journald.conf
       regexp: '^SystemMaxUse='
       line: SystemMaxUse=5M
-      backup: yes
 
 #To be done
   #- name: Ensuring dark mode is enabled in Chrome
@@ -101,3 +121,9 @@
     shell: for item in show-home show-trash; do gsettings set org.gnome.shell.extensions.ding $item false; done
     args:
       executable: /bin/bash
+
+  - name: Cleaning up temp authorized_keys
+    authorized_key:
+      user: "{{ ansible_user }}"
+      state: absent
+      key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
