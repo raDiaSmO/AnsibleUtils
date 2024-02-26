@@ -1,0 +1,32 @@
+---
+- name: Configuring rsyslog server
+  hosts: rsyslog_server
+
+  tasks:
+
+  - name: Copying config file from server
+    become: yes
+    copy:
+      src: '{{ item.src }}'
+      dest: '{{ item.dest }}'
+    loop:
+      - { src: '~/ansible/files/rsyslog_server.conf', dest: '/etc/rsyslog.conf'}
+      - { src: '~/ansible/files/homelab_custom_config', dest: '/etc/logrotate.d/homelab_custom_config'}      
+
+  - name: Setting permissions for config files
+    become: yes
+    file:
+      path: '{{ item }}'
+      owner: root
+      group: root
+      mode: '0644'
+    with_items:
+      - '/etc/rsyslog.conf'
+      - '/etc/logrotate.d/homelab_custom_config'      
+
+  - name: Starting and enabling service
+    become: yes
+    service:
+      name: 'rsyslog'
+      enabled: yes
+      state: started

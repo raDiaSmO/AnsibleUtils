@@ -1,0 +1,57 @@
+---
+- name: Installing splunk universal forwarder
+  hosts: splunk
+
+  tasks:
+
+  - name: Ensuring the splunk group exists
+    become: yes
+    group:
+      name: splunk
+      state: present 
+
+  - name: Ensuring the splunk user exists and is part of the splunk group
+    become: yes
+    user:
+      name: splunk
+      group: splunk
+
+  - name: Creating and setting permissions on splunk directory
+    become: yes
+    file:
+      path: '/opt/splunkforwarder'
+      state: directory
+      owner: splunk
+      group: splunk
+      mode: '0750'
+
+  - name: Copying config files from server
+    become: yes
+    copy:
+      src: '{{ item.src }}' 
+      dest: '{{ item.dest }}'
+    loop:
+      - { src: '~/ansible/files/splunkforwarder-9.0.0.1-9e907cedecb1-linux-2.6-amd64.deb', dest: '/opt/splunkforwarder/'}
+      - { src: '~/ansible/files/inputs.conf', dest: '/opt/splunkforwarder/etc/system/local/'}
+      - { src: '~/ansible/files/outputs.conf', dest: '/opt/splunkforwarder/etc/system/local/'}
+
+  - name: Installing deb package from source
+    become: yes
+    apt:
+      deb: '/opt/splunkforwarder/splunkforwarder-9.0.0.1-9e907cedecb1-linux-2.6-amd64.deb'
+
+  - name: Starting splunk agent
+    become: yes
+    shell: 
+          '/opt/splunkforwarder/bin/splunk start --accept-license --answer-yes --no-prompt'
+    args:
+      executable: /bin/bash
+
+  - name: Removing temp packages
+    become: yes
+    file:
+      path: '{{ item }}'
+      state: absent
+    with_items:
+      - '/opt/splunkforwarder/splunkforwarder-9.0.0.1-9e907cedecb1-linux-2.6-x86_64-manifest'
+      - '/opt/splunkforwarder/splunkforwarder-9.0.0.1-9e907cedecb1-linux-2.6-amd64.deb'

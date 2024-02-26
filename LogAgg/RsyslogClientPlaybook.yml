@@ -1,0 +1,26 @@
+---
+- name: Configuring rsyslog clients
+  hosts: rsyslog_clients
+
+  tasks:
+
+  - name: Copying config file from server
+    become: yes
+    copy:
+      src: '~/ansible/files/rsyslog_client.conf'
+      dest: '/etc/rsyslog.conf'
+
+  - name: Setting permissions for config file
+    become: yes
+    file:
+      path: '/etc/rsyslog.conf'
+      owner: root
+      group: root
+      mode: '0644'
+
+  - name: Starting and enabling service
+    become: yes
+    service:
+      name: 'rsyslog'
+      enabled: yes
+      state: started

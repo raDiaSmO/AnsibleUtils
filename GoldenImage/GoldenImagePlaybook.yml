@@ -1,0 +1,139 @@
+---
+- name: Customizing the Debian based golden image
+  hosts: golden
+
+  tasks:
+
+  - name: Generating an OpenSSH rsa keypair
+    openssh_keypair:
+      path: ~/.ssh/id_rsa
+      size: 4096
+
+  - name: Adding APT public signing keys
+    become: yes
+    apt_key:
+      url: '{{ item }}' 
+      state: present
+    with_items:
+      - 'https://download.sublimetext.com/sublimehq-pub.gpg'
+      - 'https://packages.microsoft.com/keys/microsoft.asc'
+      - 'https://download.spotify.com/debian/pubkey_6224F9941A8AA6D1.gpg'
+
+  - name: Adding APT third party repositories
+    become: yes
+    apt_repository:
+      repo: '{{ item }}'
+      state: present
+    with_items:
+      - 'deb [arch=amd64] https://download.sublimetext.com/ apt/stable/'
+      - 'deb [arch=amd64] https://packages.microsoft.com/repos/code stable main'
+      - 'deb [arch=amd64] http://repository.spotify.com stable non-free'
+
+  - name: Updating APT packages
+    become: yes
+    apt:
+      update_cache: yes
+
+  - name: Upgrading the operating system
+    become: yes
+    apt:
+      upgrade: dist
+
+  - name: Removing useless packages and dependencies that are no longer required
+    become: yes
+    apt:
+      autoclean: yes
+      autoremove: yes
+
+  - name: Installing a list of APT packages for the golden image
+    become: yes
+    apt:
+      pkg:
+      - git
+      - virtualbox
+      - gparted
+      - vim
+      - libreoffice
+      - usb-creator-gtk
+      - vlc
+      - openssh-server
+      - net-tools
+      - sublime-text
+      - libimage-exiftool-perl
+      - libfuse2
+      - spotify-client
+      state: present
+
+  - name: Installing AppImages for the golden image
+    become: yes
+    get_url:
+      url: '{{ item.url }}' 
+      dest: '{{ item.dest }}'
+      mode: '0755'
+    loop:
+      - { url: 'https://github.com/obsidianmd/obsidian-releases/releases/download/v1.5.8/Obsidian-1.5.8.AppImage', dest: '/usr/bin/obsidian'}
+      - { url: 'https://vault.bitwarden.com/download/?app=desktop&platform=linux&variant=appimage', dest: '/usr/bin/bitwarden'}
+
+  - name: Removing a list of generic APT packages for the golden image
+    become: yes
+    apt:
+      pkg:
+      - google-chrome-stable
+      - gnome-todo
+      - gnome-mahjongg
+      - gnome-sudoku
+      - gnome-mines
+      - thunderbird
+      - aisleriot
+      - remmina
+      - transmission-gtk
+      - gedit
+      - nano
+      - shotwell
+      - rhythmbox
+      state: absent
+
+  - name: Ensuring journal log file limitation
+    become: yes
+    lineinfile:
+      path: /etc/systemd/journald.conf
+      regexp: '^SystemMaxUse='
+      line: SystemMaxUse=5M
+
+  - name: Cleaning useless GUI icons for a minimalist setup and enforcing dark mode + night light for eye's sanity
+    shell: 
+           for item in show-home show-trash; do gsettings set org.gnome.shell.extensions.ding $item false; done &&
+           for var in show-mounts show-trash; do gsettings set org.gnome.shell.extensions.dash-to-dock $var false; done &&
+           for config in org.gnome.desktop.interface org.gnome.shell.ubuntu; do gsettings set $config color-scheme prefer-dark; done &&
+           key="org.gnome.settings-daemon.plugins.color night-light" &&
+           for setting in "$key""-enabled true" "$key""-schedule-from 6" "$key""-schedule-to 3" "$key""-temperature 4000"; do gsettings set $setting; done
+    args:
+      executable: /bin/bash
+
+  - name: Adding custom keyboard layout options
+    become: yes
+    shell: L='us,fr' && sed -i 's/XKBLAYOUT=\"\w*"/XKBLAYOUT=\"'$L'\"/g' /etc/default/keyboard
+    args:
+      executable: /bin/bash
+
+  - name: Copying custom audio config for PulseAudio
+    become: yes
+    copy:
+      src: '~/ansible/files/daemon.conf'
+      dest: '/etc/pulse/daemon.conf'
+
+  - name: Setting permissions for PulseAudio config file
+    become: yes
+    file:
+      path: '/etc/pulse/daemon.conf'
+      owner: root
+      group: root
+      mode: '0644'      
+
+  - name: Disabling and stopping bluetooth service
+    become: yes
+    service:
+      name: 'bluetooth'
+      enabled: no
+      state: stopped
+

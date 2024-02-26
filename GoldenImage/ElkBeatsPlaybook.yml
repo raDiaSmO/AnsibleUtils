@@ -1,0 +1,49 @@
+---
+- name: Installing linux beats agents
+  hosts: elk
+  vars:
+    beats:
+      - filebeat
+      - metricbeat
+      - packetbeat
+      - auditbeat
+
+  tasks:
+
+  - name: Checking if config file is present
+    become: yes
+    stat:
+      path: '/etc/{{ item }}/{{ item }}.yml'
+    with_items: '{{ beats }}'
+    register: status
+
+  - name: Creating and setting permissions on beats directory
+    become: yes
+    file:
+      path: '/etc/{{ item.item }}/'
+      state: directory
+      owner: root
+      group: root
+      mode: '0540'
+    with_items: '{{ status.results }}'
+
+  - name: Installing deb package from source
+    become: yes
+    apt:
+      deb: 'https://artifacts.elastic.co/downloads/beats/{{ item.item }}/{{ item.item }}-8.4.1-amd64.deb'
+    with_items: '{{ status.results }}'
+
+  - name: Copying config file from server
+    become: yes
+    copy:
+      src: '~/ansible/files/{{ item.item }}.yml'
+      dest: '/etc/{{ item.item }}/{{ item.item }}.yml'
+    with_items: '{{ status.results }}'
+
+  - name: Starting and enabling service
+    become: yes
+    service:
+      name: '{{ item.item }}'
+      enabled: yes
+      state: started
+    with_items: '{{ status.results }}'
